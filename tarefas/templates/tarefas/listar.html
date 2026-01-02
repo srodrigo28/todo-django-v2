@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Tarefas</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Configuração de cores -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#7c3aed',
+                        dark: '#0f0f14',
+                        card: '#18181f',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Scroll bonito -->
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #7c3aed;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-gray-200 min-h-screen">
+
+<div class="max-w-4xl mx-auto p-6 flex flex-col h-screen">
+
+    <!-- HEADER + CONTADORES (FIXOS) -->
+    <div class="shrink-0">
+
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <h1 class="text-3xl font-bold text-white">📋 Tarefas</h1>
+
+            <a href="{% url 'nova_tarefa' %}"
+               class="px-5 py-2 rounded-lg bg-primary hover:bg-purple-700 transition
+                      text-white font-semibold shadow-lg">
+                + Nova Tarefa
+            </a>
+        </div>
+
+        <!-- Contadores -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="bg-card border border-gray-700 rounded-xl p-4 text-center">
+                <p class="text-gray-400 text-sm">Total</p>
+                <p class="text-2xl font-bold text-white">{{ total }}</p>
+            </div>
+
+            <div class="bg-card border border-gray-700 rounded-xl p-4 text-center">
+                <p class="text-gray-400 text-sm">Pendentes</p>
+                <p class="text-2xl font-bold text-yellow-400">{{ pendentes }}</p>
+            </div>
+
+            <div class="bg-card border border-gray-700 rounded-xl p-4 text-center">
+                <p class="text-gray-400 text-sm">Finalizadas</p>
+                <p class="text-2xl font-bold text-green-400">{{ finalizadas }}</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- LISTA COM SCROLL -->
+    <div class="flex-1 overflow-y-auto pr-2">
+        <ul class="space-y-4">
+            {% for tarefa in tarefas %}
+            <li class="bg-card border border-gray-700 rounded-xl p-5
+                       flex flex-col md:flex-row md:items-center md:justify-between
+                       gap-4 hover:border-primary transition">
+
+                <!-- Info -->
+                <div>
+                    <h2 class="text-xl font-semibold text-white">
+                        {{ tarefa.titulo }}
+                    </h2>
+                    <p class="text-gray-400 text-sm mt-1">
+                        {{ tarefa.descricao }}
+                    </p>
+
+                    {% if tarefa.finalizado %}
+                        <span class="inline-block mt-2 px-3 py-1 text-xs rounded-full
+                                     bg-green-600/20 text-green-400">
+                            ✔ Finalizada
+                        </span>
+                    {% else %}
+                        <span class="inline-block mt-2 px-3 py-1 text-xs rounded-full
+                                     bg-yellow-600/20 text-yellow-400">
+                            ⏳ Pendente
+                        </span>
+                    {% endif %}
+                </div>
+
+                <div class="flex flex-col"> <div class="flex gap-3">
+                        <a href="{% url 'detalhes_tarefa' tarefa.id %}"
+                        class="px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary hover:text-white transition">
+                            Detalhes
+                        </a>
+
+                        <button onclick="openModal('{{ tarefa.id }}')"
+                                class="px-4 py-2 rounded-lg border border-red-600 text-red-400 hover:bg-red-600 hover:text-white transition">
+                            Excluir
+                        </button>
+                    </div>
+
+                    <p class="mt-3 text-sm text-gray-400 text-end">
+                        <!-- Data: <strong>{{ tarefa.criado_em|date:"d/m/Y H:i" }}</strong> -->
+                        Data: <strong>{{ tarefa.criado_em|date:"d/m/Y" }}</strong>
+                    </p>
+                </div>
+            </li>
+
+            {% empty %}
+            <li class="text-center text-gray-400 py-10">
+                Nenhuma tarefa cadastrada.
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+</div>
+
+<!-- MODAL DE CONFIRMAÇÃO -->
+<div id="modal"
+     class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50">
+
+    <div class="bg-card border border-gray-700 rounded-2xl p-6 w-full max-w-md">
+        <h2 class="text-xl font-bold text-white mb-4">
+            ⚠️ Confirmar exclusão
+        </h2>
+
+        <p class="text-gray-400 mb-6">
+            Tem certeza que deseja excluir esta tarefa?
+            Essa ação não pode ser desfeita.
+        </p>
+
+        <form id="deleteForm" method="POST">
+            {% csrf_token %}
+
+            <div class="flex gap-4">
+                <button type="submit"
+                        class="flex-1 px-4 py-2 rounded-xl
+                               bg-red-600 hover:bg-red-700 transition
+                               text-white font-semibold">
+                    Excluir
+                </button>
+
+                <button type="button"
+                        onclick="closeModal()"
+                        class="flex-1 px-4 py-2 rounded-xl
+                               border border-gray-600 hover:border-primary
+                               hover:text-primary transition">
+                    Cancelar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- JS MODAL -->
+<script>
+    function openModal(tarefaId) {
+        const modal = document.getElementById('modal');
+        const form = document.getElementById('deleteForm');
+
+        // ajuste se sua URL for diferente
+        form.action = `/deletar/${tarefaId}/`;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+</script>
+
+</body>
+</html>
