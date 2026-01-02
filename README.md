@@ -9,16 +9,16 @@ Projeto simples e moderno de **lista de tarefas** desenvolvido com **Django 3** 
 ## 📸 Telas do projeto
 
 ### Home - Lista de tarefas        
-![Home](preview/tela/home-v3.png) 
+![Home](preview/tela/home.png) 
 
 ### Nova tarefa
-![Nova](preview/tela/nova-v2.png) 
+![Nova](preview/tela/nova.png) 
 
 ### Editar tarefa             |
-![Editar](preview/tela/editar-v2.png) 
+![Editar](preview/tela/editar.png) 
 
 ### Detalhes da tarefa
-![Detalhes](preview/tela/detalhes-v2.png)
+![Detalhes](preview/tela/detalhes.png)
 
 ## 🛠️ Tecnologias Utilizadas
 
