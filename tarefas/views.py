@@ -10,60 +10,84 @@ def cadastrar_usuario(request):
     if request.method == 'POST':
         form = CadastroForm(request.POST)
         if form.is_valid():
-            # 1. Cria o objeto mas não salva no banco ainda
             user = form.save(commit=False)
             
-            # 2. O PULO DO GATO: Pega o email e joga no username
+            # Pega o email e define como username (garante login via email)
             email_digitado = form.cleaned_data.get('email')
             user.username = email_digitado 
             
-            # 3. Salva o usuário oficialmente
+            # Define a senha de forma criptografada (ESSENCIAL)
+            user.set_password(form.cleaned_data.get('senha'))
+            
+            # Pega o nome completo e separa em first_name para o avatar
+            nome_completo = form.cleaned_data.get('nome')
+            if nome_completo:
+                partes = nome_completo.split(' ', 1)
+                user.first_name = partes[0]
+                user.last_name = partes[1] if len(partes) > 1 else ""
+
             user.save()
 
-            # 4. Cria o perfil vinculado (Telefone)
+            # Cria o perfil vinculado (Telefone)
             Perfil.objects.create(
                 usuario=user,
                 telefone=form.cleaned_data.get('telefone')
             )
 
-            # 5. Loga e Redireciona
             login(request, user)
-            messages.success(request, f"Bem-vindo, {user.first_name}!")
+            messages.success(request, f"🚀 Bem-vindo, {user.first_name}! Sua conta foi criada.")
             return redirect('listar_tarefas') 
     else:
         form = CadastroForm()
     
     return render(request, 'usuarios/cadastro.html', {'form': form})
-# --- VIEWS PROTEGIDAS (PRECISAM DE LOGIN) ---
+
+# --- VIEWS PROTEGIDAS ---
 
 @login_required
 def listar_tarefas(request):
-    # Filtro essencial: apenas minhas tarefas e que não estão na "lixeira"
-    tarefas = Tarefa.objects.filter(usuario=request.user, excluida=False).order_by('-criado_em')
+    # 1. Base: Tarefas do usuário que não estão na lixeira
+    queryset_base = Tarefa.objects.filter(usuario=request.user, excluida=False)
     
+    # 2. Captura o filtro da URL (os botões que criamos no HTML)
+    status_filtro = request.GET.get('status', 'todas')
+    
+    if status_filtro == 'pendentes':
+        tarefas = queryset_base.filter(finalizado=False)
+    elif status_filtro == 'concluidas':
+        tarefas = queryset_base.filter(finalizado=True)
+    else:
+        tarefas = queryset_base
+
+    # 3. Contexto com contadores reais
     context = {
-        'tarefas': tarefas,
-        'total': tarefas.count(),
-        'pendentes': tarefas.filter(finalizado=False).count(),
-        'finalizadas': tarefas.filter(finalizado=True).count(),
+        'tarefas': tarefas.order_by('-criado_em'),
+        'total': queryset_base.count(),
+        'pendentes': queryset_base.filter(finalizado=False).count(),
+        'finalizadas': queryset_base.filter(finalizado=True).count(),
     }
     return render(request, 'tarefas/listar.html', context)
 
 @login_required
 def nova_tarefa(request):
+    """View que processa o formulário que está dentro do Drawer lateral"""
     if request.method == 'POST':
         titulo = request.POST.get('titulo')
         descricao = request.POST.get('descricao')
 
         if titulo:
             Tarefa.objects.create(
-                usuario=request.user, # Define o dono da tarefa
+                usuario=request.user,
                 titulo=titulo, 
                 descricao=descricao
             )
+            messages.success(request, "Tarefa criada com sucesso!")
             return redirect('listar_tarefas')
+        else:
+            messages.error(request, "O título da tarefa é obrigatório.")
 
-    return render(request, 'tarefas/nova.html')
+    # Se alguém acessar via GET, mandamos de volta para a lista (onde o drawer vive)
+    return redirect('listar_tarefas')
 
 @login_required
 def editar_tarefa(request, tarefa_id):
@@ -72,8 +96,10 @@ def editar_tarefa(request, tarefa_id):
     if request.method == 'POST':
         tarefa.titulo = request.POST.get('titulo')
         tarefa.descricao = request.POST.get('descricao')
+        # Checkbox: se vier na request, é True
         tarefa.finalizado = 'finalizado' in request.POST
         tarefa.save()
+        messages.success(request, "Tarefa atualizada!")
         return redirect('listar_tarefas')
 
     return render(request, 'tarefas/editar.html', {'tarefa': tarefa})
@@ -88,7 +114,8 @@ def deletar_tarefa(request, tarefa_id):
     tarefa = get_object_or_404(Tarefa, id=tarefa_id, usuario=request.user)
 
     if request.method == 'POST':
-        tarefa.excluida = True  # Soft delete aplicado
+        tarefa.excluida = True  # Soft delete
         tarefa.save()
+        messages.warning(request, "Tarefa enviada para a lixeira.")
 
     return redirect('listar_tarefas')
